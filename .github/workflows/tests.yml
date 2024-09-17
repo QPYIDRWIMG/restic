@@ -1,32 +1,25 @@
-name: build-and-release-binary
+name: Build and Upload Binaries
 on:
   push:
     branches:
       - master
-
-permissions:
-  contents: read
-
-env:
-  LATEST_GO: "1.22.x"
-  GO111MODULE: on
+  pull_request:
+  merge_group:
 
 jobs:
-  build:
+  build_and_upload:
     strategy:
       matrix:
         include:
           - os: windows-latest
-            artifact_name: windows-binary
-            output_directory: dist-windows
-
+            job_name: Windows
           - os: macOS-latest
-            artifact_name: macos-binary
-            output_directory: dist-macos
-
+            job_name: macOS
           - os: ubuntu-latest
-            artifact_name: linux-binary
-            output_directory: dist-linux
+            job_name: Linux
+          - os: ubuntu-latest
+            job_name: Linux (race)
+            test_opts: "-race"
 
     runs-on: ${{ matrix.os }}
 
@@ -34,56 +27,19 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
-      - name: Set up Go ${{ env.LATEST_GO }}
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.LATEST_GO }}
+          go-version: 1.22.x
 
       - name: Build with build.go
         run: |
-          go run build.go -output=${{ matrix.output_directory }}  # 假设build.go支持指定输出目录
+          go run build.go
 
-      - name: Upload binary artifact
+      - name: Upload binary artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.artifact_name }}
-          path: ${{ matrix.output_directory }}/*
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
-    steps:
-      - name: Download all workflow run artifacts
-        uses: actions/download-artifact@v3
-        with:
-          path: ./artifacts
-
-      - name: Zip all binaries into one archive
-        run: |
-          mkdir release-bundle
-          mv ./artifacts/* ./release-bundle/
-          cd release-bundle
-          zip -r ../release-bundle.zip .
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.run_number }}
-          release_name: Release ${{ github.run_number }}
-          draft: false
-          prerelease: false
-
-      - name: Upload Release Asset
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./release-bundle.zip
-          asset_name: release-bundle.zip
-          asset_content_type: application/zip
+          name: binaries-${{ matrix.job_name }}
+          path: |
+            # 假设二进制文件名为 restic 或 restic.exe
+            restic*
