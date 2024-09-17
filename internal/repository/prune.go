@@ -328,7 +328,7 @@ func decidePackAction(ctx context.Context, opts PruneOptions, repo *Repository, 
 	targetPackSize := repo.packSize() / 25
 	if opts.RepackSmall {
 		// consider files with at least 80% of the target size as large enough
-		targetPackSize = repo.packSize() / 5 * 4
+		targetPackSize = repo.packSize()
 	}
 
 	// loop over all packs and decide what to do
